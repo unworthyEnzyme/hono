@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Hono } from './hono'
 import { validator } from './middleware/validator'
-import type { CustomHandler as Handler } from './types'
+import type { CustomHandler as Handler, MiddlewareHandler } from './types'
 import type { Expect, Equal, NotEqual } from './utils/types'
 import type { Validator } from './validator/validator'
 
@@ -148,5 +148,41 @@ describe('Test types of CustomHandler', () => {
     res = await app.request('http://localhost/?q=bar')
     expect(res.status).toBe(200)
     expect(await res.text()).toBe('bar')
+  })
+
+  test('Normal types', () => {
+    type User = {
+      name: string
+      age: number
+    }
+
+    const handler: Handler<User> = (c) => {
+      const user = c.req.valid()
+      type verifySchema = Expect<Equal<typeof user, User>>
+      return c.text('Hi')
+    }
+  })
+})
+
+describe('CustomHandler as middleware', () => {
+  const app = new Hono()
+  const mid1 = (): MiddlewareHandler => {
+    return async (_c, next) => {
+      await next()
+    }
+  }
+
+  const mid2 = (): Handler<{ Foo: string }> => {
+    return async (_c, next) => {
+      await next()
+    }
+  }
+
+  it('Should not throw Type error', async () => {
+    app.get('*', mid1(), mid2(), (c) => {
+      return c.text('foo')
+    })
+    const res = await app.request('http://localhost/')
+    expect(res.status).toBe(200)
   })
 })
